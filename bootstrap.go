@@ -2,7 +2,7 @@ package bootstrap
 
 import (
 	"github.com/aaronland/go-http-bootstrap/resources"
-	"log"
+	_ "log"
 	"net/http"
 	"strings"
 )
