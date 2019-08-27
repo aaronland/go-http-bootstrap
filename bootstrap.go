@@ -24,10 +24,28 @@ func DefaultBootstrapOptions() *BootstrapOptions {
 }
 
 func AppendResourcesHandler(next http.Handler, opts *BootstrapOptions) http.Handler {
+	return AppendResourcesHandlerWithPrefix(next, opts, "")
+}
+
+func AppendResourcesHandlerWithPrefix(next http.Handler, opts *BootstrapOptions, prefix string) http.Handler {
+
+	js := opts.JS
+	css := opts.CSS
+
+	if prefix != "" {
+
+		for i, path := range js {
+			js[i] = appendPrefix(prefix, path)
+		}
+
+		for i, path := range css {
+			css[i] = appendPrefix(prefix, path)
+		}
+	}
 
 	ext_opts := &resources.AppendResourcesOptions{
-		JS:  opts.JS,
-		CSS: opts.CSS,
+		JS:  js,
+		CSS: css,
 	}
 
 	return resources.AppendResourcesHandler(next, ext_opts)
@@ -40,7 +58,6 @@ func AssetsHandler() (http.Handler, error) {
 }
 
 func AppendAssetHandlers(mux *http.ServeMux) error {
-
 	return AppendAssetHandlersWithPrefix(mux, "")
 }
 
@@ -52,19 +69,28 @@ func AppendAssetHandlersWithPrefix(mux *http.ServeMux, prefix string) error {
 		return nil
 	}
 
-	prefix = strings.TrimRight(prefix, "/")
-
 	for _, path := range AssetNames() {
 
 		path := strings.Replace(path, "static", "", 1)
 
 		if prefix != "" {
-			path = strings.TrimLeft(path, "/")
-			path = filepath.Join(prefix, path)
+			path = appendPrefix(prefix, path)
 		}
 
 		mux.Handle(path, asset_handler)
 	}
 
 	return nil
+}
+
+func appendPrefix(prefix string, path string) string {
+
+	prefix = strings.TrimRight(prefix, "/")
+
+	if prefix != "" {
+		path = strings.TrimLeft(path, "/")
+		path = filepath.Join(prefix, path)
+	}
+
+	return path
 }
