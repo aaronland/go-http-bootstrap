@@ -58,10 +58,10 @@ func RewriteHTMLHandler(prev go_http.Handler, rewrite_func RewriteHTMLFunc) go_h
 		data := buf.Bytes()
 		clen := len(data)
 
-		rsp.WriteHeader(200)
+		rsp.Header().Set("Content-Length", strconv.Itoa(clen))
+		rsp.Header().Set("Content-Type", "text/html; charset=utf-8")
 
-		req.Header.Set("Content-Length", strconv.Itoa(clen))
-		req.Header.Set("Content-Type", "text/html")
+		rsp.WriteHeader(200)
 		rsp.Write(data)
 	}
 

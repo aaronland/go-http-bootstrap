@@ -4,6 +4,7 @@ import (
 	"github.com/aaronland/go-http-bootstrap/resources"
 	_ "log"
 	"net/http"
+	"path/filepath"
 	"strings"
 )
 
@@ -40,14 +41,28 @@ func AssetsHandler() (http.Handler, error) {
 
 func AppendAssetHandlers(mux *http.ServeMux) error {
 
+	return AppendAssetHandlersWithPrefix(mux, "")
+}
+
+func AppendAssetHandlersWithPrefix(mux *http.ServeMux, prefix string) error {
+
 	asset_handler, err := AssetsHandler()
 
 	if err != nil {
 		return nil
 	}
 
+	prefix = strings.TrimRight(prefix, "/")
+
 	for _, path := range AssetNames() {
+
 		path := strings.Replace(path, "static", "", 1)
+
+		if prefix != "" {
+			path = strings.TrimLeft(path, "/")
+			path = filepath.Join(prefix, path)
+		}
+
 		mux.Handle(path, asset_handler)
 	}
 
