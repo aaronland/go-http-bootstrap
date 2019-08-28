@@ -2,6 +2,8 @@ github.com/aaronland/go-http-rewrite v0.0.1 h1:nQ4qqtOC0QHpEhQeFpRRwdXAEwuhHhgsx
 github.com/aaronland/go-http-rewrite v0.0.1/go.mod h1:g62jjXpsArD0lzJLs9bVLR9Locdt3f4OmqFkkJL2rQU=
 github.com/aaronland/go-http-rewrite v0.0.2 h1:H9uW+mL6V//BS927a9rFBSkOKDL3bGIlaPiVIC6UN3I=
 github.com/aaronland/go-http-rewrite v0.0.2/go.mod h1:g62jjXpsArD0lzJLs9bVLR9Locdt3f4OmqFkkJL2rQU=
+github.com/aaronland/go-http-rewrite v0.0.3 h1:mhRnmKLpv1MiHCXpi1jmgdJujRKQNifctuT/ahv+q0U=
+github.com/aaronland/go-http-rewrite v0.0.3/go.mod h1:g62jjXpsArD0lzJLs9bVLR9Locdt3f4OmqFkkJL2rQU=
 github.com/whosonfirst/go-bindata v0.1.0 h1:SIjIa/+blKoda8iTaWqxzwFtEc00jNcB2M9dRwGemrg=
 github.com/whosonfirst/go-bindata v0.1.0/go.mod h1:qaBkVepgCeknoVuYsUXTJpnlxqrEcZzaIaqZ6XaK+Hk=
 github.com/whosonfirst/go-bindata-assetfs v1.0.1 h1:AA328GrND8/uDkf5+5U9Fakgr7QkzET/a6uuXDYpQp0=

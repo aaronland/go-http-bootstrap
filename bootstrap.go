@@ -1,6 +1,7 @@
 package bootstrap
 
 import (
+	"github.com/aaronland/go-http-rewrite"	
 	"github.com/aaronland/go-http-bootstrap/resources"
 	_ "log"
 	"net/http"
@@ -57,13 +58,36 @@ func AssetsHandler() (http.Handler, error) {
 	return http.FileServer(fs), nil
 }
 
+func AssetsHandlerWithPrefix(prefix string) (http.Handler, error) {
+
+	fs_handler, err := AssetsHandler()
+
+	if err != nil {
+		return nil, err
+	}
+
+	prefix = strings.TrimRight(prefix, "/")
+	
+	if prefix == "" {
+		return fs_handler, nil
+	}
+
+	rewrite_func := func(req *http.Request) (*http.Request, error){
+		req.URL.Path = strings.Replace(req.URL.Path, prefix, "", 1)
+		return req, nil
+	}
+
+	rewrite_handler := rewrite.RewriteRequestHandler(fs_handler, rewrite_func)
+	return rewrite_handler, nil
+}
+
 func AppendAssetHandlers(mux *http.ServeMux) error {
 	return AppendAssetHandlersWithPrefix(mux, "")
 }
 
 func AppendAssetHandlersWithPrefix(mux *http.ServeMux, prefix string) error {
 
-	asset_handler, err := AssetsHandler()
+	asset_handler, err := AssetsHandlerWithPrefix(prefix)
 
 	if err != nil {
 		return nil
