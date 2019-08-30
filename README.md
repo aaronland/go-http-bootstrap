@@ -1,6 +1,6 @@
 # go-http-bootstrap
 
-Go HTTP middleware for Bootstrap
+Go HTTP middleware for Bootstrap (4.3.1)
 
 ## Important
 
