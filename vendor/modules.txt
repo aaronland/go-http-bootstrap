@@ -1,9 +1,9 @@
-# github.com/aaronland/go-http-rewrite v0.0.3
+# github.com/aaronland/go-http-rewrite v0.0.5
 github.com/aaronland/go-http-rewrite
 # github.com/whosonfirst/go-bindata v0.1.0
 github.com/whosonfirst/go-bindata
 # github.com/whosonfirst/go-bindata-assetfs v1.0.1
 github.com/whosonfirst/go-bindata-assetfs
-# golang.org/x/net v0.0.0-20190628185345-da137c7871d7
+# golang.org/x/net v0.0.0-20200707034311-ab3426394381
 golang.org/x/net/html
 golang.org/x/net/html/atom

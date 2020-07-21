@@ -19,6 +19,6 @@ func RewriteRequestHandler(next go_http.Handler, rewrite_func RewriteRequestFunc
 
 		next.ServeHTTP(rsp, next_req)
 	}
-	
-	return go_http.HandlerFunc(fn)	
+
+	return go_http.HandlerFunc(fn)
 }
