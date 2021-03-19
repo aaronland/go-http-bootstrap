@@ -1,11 +1,12 @@
 package bootstrap
 
 import (
+	"fmt"
 	"github.com/aaronland/go-http-bootstrap/resources"
 	"github.com/aaronland/go-http-bootstrap/static"
 	"github.com/aaronland/go-http-rewrite"
 	"io/fs"
-	"log"
+	_ "log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -97,8 +98,6 @@ func AppendAssetHandlersWithPrefix(mux *http.ServeMux, prefix string) error {
 
 	walk_func := func(path string, d fs.DirEntry, err error) error {
 
-		path = strings.Replace(path, "static", "", 1)
-
 		if path == "." {
 			return nil
 		}
@@ -107,12 +106,15 @@ func AppendAssetHandlersWithPrefix(mux *http.ServeMux, prefix string) error {
 			path = appendPrefix(prefix, path)
 		}
 
-		log.Println("APPEND", path, asset_handler)
+		if !strings.HasPrefix(path, "/") {
+			path = fmt.Sprintf("/%s", path)
+		}
+
+		// log.Println("APPEND", path)
 		mux.Handle(path, asset_handler)
 		return nil
 	}
 
-	log.Println("WHAT", static.FS)
 	return fs.WalkDir(static.FS, ".", walk_func)
 }
 
