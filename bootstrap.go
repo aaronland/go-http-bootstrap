@@ -1,9 +1,11 @@
 package bootstrap
 
 import (
-	"github.com/aaronland/go-http-rewrite"	
 	"github.com/aaronland/go-http-bootstrap/resources"
-	_ "log"
+	"github.com/aaronland/go-http-bootstrap/static"
+	"github.com/aaronland/go-http-rewrite"
+	"io/fs"
+	"log"
 	"net/http"
 	"path/filepath"
 	"strings"
@@ -54,8 +56,8 @@ func AppendResourcesHandlerWithPrefix(next http.Handler, opts *BootstrapOptions,
 
 func AssetsHandler() (http.Handler, error) {
 
-	fs := assetFS()
-	return http.FileServer(fs), nil
+	http_fs := http.FS(static.FS)
+	return http.FileServer(http_fs), nil
 }
 
 func AssetsHandlerWithPrefix(prefix string) (http.Handler, error) {
@@ -67,12 +69,12 @@ func AssetsHandlerWithPrefix(prefix string) (http.Handler, error) {
 	}
 
 	prefix = strings.TrimRight(prefix, "/")
-	
+
 	if prefix == "" {
 		return fs_handler, nil
 	}
 
-	rewrite_func := func(req *http.Request) (*http.Request, error){
+	rewrite_func := func(req *http.Request) (*http.Request, error) {
 		req.URL.Path = strings.Replace(req.URL.Path, prefix, "", 1)
 		return req, nil
 	}
@@ -93,18 +95,25 @@ func AppendAssetHandlersWithPrefix(mux *http.ServeMux, prefix string) error {
 		return nil
 	}
 
-	for _, path := range AssetNames() {
+	walk_func := func(path string, d fs.DirEntry, err error) error {
 
-		path := strings.Replace(path, "static", "", 1)
+		path = strings.Replace(path, "static", "", 1)
+
+		if path == "." {
+			return nil
+		}
 
 		if prefix != "" {
 			path = appendPrefix(prefix, path)
 		}
 
+		log.Println("APPEND", path, asset_handler)
 		mux.Handle(path, asset_handler)
+		return nil
 	}
 
-	return nil
+	log.Println("WHAT", static.FS)
+	return fs.WalkDir(static.FS, ".", walk_func)
 }
 
 func appendPrefix(prefix string, path string) string {
