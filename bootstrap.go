@@ -21,7 +21,8 @@ func DefaultBootstrapOptions() *BootstrapOptions {
 
 	opts := &BootstrapOptions{
 		CSS: []string{"/css/bootstrap.min.css"},
-		JS:  []string{"/javascript/bootstrap.min.js"},
+		// JS:  []string{"/javascript/bootstrap.min.js"},				
+		JS:  make([]string, 0),
 	}
 
 	return opts
