@@ -97,12 +97,16 @@ func AppendAssetHandlersWithPrefix(mux *http.ServeMux, prefix string) error {
 		return nil
 	}
 
-	walk_func := func(path string, d fs.DirEntry, err error) error {
+	walk_func := func(path string, info fs.DirEntry, err error) error {
 
 		if path == "." {
 			return nil
 		}
 
+		if info.IsDir(){
+			return nil
+		}
+		
 		if prefix != "" {
 			path = appendPrefix(prefix, path)
 		}
