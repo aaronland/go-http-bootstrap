@@ -87,6 +87,10 @@ The when you open the URL `http://localhost:8080` in a web browser you should se
 
 ![](docs/images/go-http-bootstrap-example.png)
 
+### Notes
+
+All of the Bootstrap files in the [static/css](static/css) and [static/javascript](static/javascript) are registered with your `http.ServeMux` instance when you call `bootstrap.AppendAssetHandlers` but by default only the `css/bootstrap.min.css` is included in the list of CSS and Javascript resources to append to HTML content when you call the `bootstrap.DefaultBootstrapOptions()` method. If there are other Bootstrap-related files you need to access in your application you will need to add them to the `BootstrapOptions.CSS` and `Bootstrap.JS` properties manually.
+
 ## See also
 
 * https://getbootstrap.com/
