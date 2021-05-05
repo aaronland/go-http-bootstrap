@@ -2,7 +2,7 @@ package bootstrap
 
 import (
 	"fmt"
-	"github.com/aaronland/go-http-bootstrap/resources"
+	"github.com/aaronland/go-http-rewrite"	
 	"github.com/aaronland/go-http-bootstrap/static"
 	"io/fs"
 	_ "log"
@@ -42,10 +42,8 @@ func AppendResourcesHandlerWithPrefix(next http.Handler, opts *BootstrapOptions,
 	// risk of infinite-prefixing because of copy by reference issues
 	// (20210322/straup)
 
-	ext_opts := &resources.AppendResourcesOptions{
-		JS:  make([]string, len(opts.JS)),
-		CSS: make([]string, len(opts.CSS)),
-	}
+	js := make([]string, len(opts.JS))
+	css := make([]string, len(opts.CSS))
 
 	for idx, path := range opts.JS {
 
@@ -53,7 +51,7 @@ func AppendResourcesHandlerWithPrefix(next http.Handler, opts *BootstrapOptions,
 			path = appendPrefix(prefix, path)
 		}
 
-		ext_opts.JS[idx] = path
+		js[idx] = path
 	}
 
 	for idx, path := range opts.CSS {
@@ -62,10 +60,15 @@ func AppendResourcesHandlerWithPrefix(next http.Handler, opts *BootstrapOptions,
 			path = appendPrefix(prefix, path)
 		}
 
-		ext_opts.CSS[idx] = path
+		css[idx] = path
 	}
 
-	return resources.AppendResourcesHandler(next, ext_opts)
+	rewrite_opts := &rewrite.AppendResourcesOptions{
+		JavaScript:  js,
+		Stylesheets: css,
+	}
+
+	return rewrite.AppendResourcesHandler(next, rewrite_opts)
 }
 
 // AssetsHandler returns a net/http FS instance containing the embedded Bootstrap assets that are included with this package.
