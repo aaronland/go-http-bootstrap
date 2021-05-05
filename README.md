@@ -15,7 +15,77 @@ This package doesn't specify any code or methods for how Bootstrap.js is used. I
 
 ## Example
 
-See [cmd/example](cmd/example/main.go) for a working example.
+```
+package main
+
+import (
+	"github.com/aaronland/go-http-bootstrap"
+	"log"
+	"net/http"
+)
+
+func Handler() http.Handler {
+
+	index := `
+<!doctype html>
+<html lang="en-us">
+  <head>
+    <meta charset="utf-8">
+    <meta http-equiv="Content-Type" content="text/html; charset=utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Bootstrap</title>
+  </head>
+
+  <body>
+   <div class="card">
+   	<h1 class="card-header">Card header</h1>
+	<div class="card-body">Card body</div>
+	<div class="card-footer">Card footer</div>
+   </div>
+  </body>
+</html>`
+
+	fn := func(rsp http.ResponseWriter, req *http.Request) {
+
+		rsp.Write([]byte(index))
+	}
+
+	return http.HandlerFunc(fn)
+}
+
+func main() {
+
+	mux := http.NewServeMux()
+	
+	idx_handler := Handler()
+
+	bootstrap_opts := bootstrap.DefaultBootstrapOptions()
+	idx_handler = bootstrap.AppendResourcesHandler(idx_handler, bootstrap_opts)
+
+	mux.Handle("/", idx_handler)
+
+	bootstrap.AppendAssetHandlers(mux)
+
+	endpoint := "localhost:8080"
+	log.Printf("Listening for requests on %s\n", endpoint)
+
+	http.ListenAndServe(endpoint, mux)
+}
+```
+
+_Error handling omitted for brevity._
+
+You can see an example of this application by running the [cmd/example](cmd/example/main.go) application. You can do so by invoking the `example` Makefile target. For example:
+
+```
+$> make example
+go run -mod vendor cmd/example/main.go 
+2021/05/05 13:54:07 Listening for requests on localhost:8080
+```
+
+The when you open the URL `http://localhost:8080` in a web browser you should see the following:
+
+![](docs/images/go-http-bootstrap-example.png)
 
 ## See also
 
