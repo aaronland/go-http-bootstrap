@@ -1,6 +1,7 @@
-# github.com/aaronland/go-http-rewrite v0.0.6
-## explicit
+# github.com/aaronland/go-http-rewrite v1.0.1
+## explicit; go 1.18
 github.com/aaronland/go-http-rewrite
-# golang.org/x/net v0.0.0-20201002202402-0a1ea396d57c
+# golang.org/x/net v0.0.0-20220425223048-2871e0cb64e4
+## explicit; go 1.17
 golang.org/x/net/html
 golang.org/x/net/html/atom
