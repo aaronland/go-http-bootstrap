@@ -3,9 +3,10 @@ package main
 import (
 	"flag"
 	"fmt"
-	"github.com/aaronland/go-http-bootstrap"
 	"log"
 	"net/http"
+
+	"github.com/aaronland/go-http-bootstrap"
 )
 
 func Handler() http.Handler {
@@ -42,6 +43,9 @@ func main() {
 	host := flag.String("host", "localhost", "...")
 	port := flag.Int("port", 8080, "...")
 
+	enable_js := flag.Bool("enable-javascript", false, "Include bootstrap.bundle.min.js")
+	js_eof := flag.Bool("javascript-at-eof", false, "Append JavaScript resources to end of HTML file.")
+
 	flag.Parse()
 
 	mux := http.NewServeMux()
@@ -49,6 +53,12 @@ func main() {
 	idx_handler := Handler()
 
 	bootstrap_opts := bootstrap.DefaultBootstrapOptions()
+
+	if *enable_js {
+		bootstrap_opts.EnableJavascript()
+		bootstrap_opts.AppendJavaScriptAtEOF = *js_eof
+	}
+
 	idx_handler = bootstrap.AppendResourcesHandler(idx_handler, bootstrap_opts)
 
 	mux.Handle("/", idx_handler)
