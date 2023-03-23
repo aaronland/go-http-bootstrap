@@ -4,6 +4,24 @@ github.com/aaronland/go-http-rewrite
 # github.com/aaronland/go-http-static v0.0.3
 ## explicit; go 1.18
 github.com/aaronland/go-http-static
+# github.com/aaronland/go-log/v2 v2.0.0
+## explicit; go 1.18
+github.com/aaronland/go-log/v2
+# github.com/sfomuseum/go-http-rollup v0.0.2
+## explicit; go 1.20
+github.com/sfomuseum/go-http-rollup
+# github.com/tdewolff/minify/v2 v2.12.4
+## explicit; go 1.13
+github.com/tdewolff/minify/v2
+github.com/tdewolff/minify/v2/css
+github.com/tdewolff/minify/v2/js
+# github.com/tdewolff/parse/v2 v2.6.4
+## explicit; go 1.13
+github.com/tdewolff/parse/v2
+github.com/tdewolff/parse/v2/buffer
+github.com/tdewolff/parse/v2/css
+github.com/tdewolff/parse/v2/js
+github.com/tdewolff/parse/v2/strconv
 # golang.org/x/net v0.8.0
 ## explicit; go 1.17
 golang.org/x/net/html
