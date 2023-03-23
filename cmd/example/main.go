@@ -45,6 +45,7 @@ func main() {
 
 	enable_js := flag.Bool("enable-javascript", false, "Include bootstrap.bundle.min.js")
 	js_eof := flag.Bool("javascript-at-eof", false, "Append JavaScript resources to end of HTML file.")
+	rollup_assets := flag.Bool("rollup-assets", false, "Rollup (minify and bundle) JavaScript and CSS assets.")
 
 	flag.Parse()
 
@@ -59,11 +60,13 @@ func main() {
 		bootstrap_opts.AppendJavaScriptAtEOF = *js_eof
 	}
 
+	bootstrap_opts.RollupAssets = *rollup_assets
+
 	idx_handler = bootstrap.AppendResourcesHandler(idx_handler, bootstrap_opts)
 
 	mux.Handle("/", idx_handler)
 
-	err := bootstrap.AppendAssetHandlers(mux)
+	err := bootstrap.AppendAssetHandlers(mux, bootstrap_opts)
 
 	if err != nil {
 		log.Fatal(err)
