@@ -3,6 +3,8 @@ package js
 import (
 	"bytes"
 	"encoding/hex"
+	stdStrconv "strconv"
+	"unicode/utf8"
 
 	"github.com/tdewolff/minify/v2"
 	"github.com/tdewolff/parse/v2/js"
@@ -631,7 +633,7 @@ func isFalsy(i js.IExpr) (bool, bool) {
 			return !negated, true // falsy
 		} else if tt == js.TrueToken || tt == js.StringToken {
 			return negated, true // truthy
-		} else if tt == js.DecimalToken || tt == js.BinaryToken || tt == js.OctalToken || tt == js.HexadecimalToken || tt == js.BigIntToken {
+		} else if tt == js.DecimalToken || tt == js.BinaryToken || tt == js.OctalToken || tt == js.HexadecimalToken || tt == js.IntegerToken {
 			for _, c := range d {
 				if c == 'e' || c == 'E' || c == 'n' {
 					break
@@ -825,7 +827,7 @@ func (m *jsMinifier) optimizeCondExpr(expr *js.CondExpr, prec js.OpPrec) js.IExp
 	} else if isEqualExpr(expr.X, expr.Y) {
 		// if true and false bodies are equal
 		return groupExpr(&js.CommaExpr{[]js.IExpr{expr.Cond, expr.X}}, prec)
-	} else if nullishExpr, ok := toNullishExpr(expr); ok && !m.o.NoNullishOperator {
+	} else if nullishExpr, ok := toNullishExpr(expr); ok && m.o.minVersion(2020) {
 		// no need to check whether left/right need to add groups, as the space saving is always more
 		return nullishExpr
 	} else {
@@ -938,7 +940,6 @@ func minifyString(b []byte, allowTemplate bool) []byte {
 	backtickQuotes := 0
 	newlines := 0
 	dollarSigns := 0
-	notEscapes := false
 	for i := 1; i < len(b)-1; i++ {
 		if b[i] == '\'' {
 			singleQuotes++
@@ -946,25 +947,69 @@ func minifyString(b []byte, allowTemplate bool) []byte {
 			doubleQuotes++
 		} else if b[i] == '`' {
 			backtickQuotes++
-		} else if b[i] == '$' {
+		} else if b[i] == '$' && i+1 < len(b) && b[i+1] == '{' {
 			dollarSigns++
 		} else if b[i] == '\\' && i+1 < len(b) {
 			if b[i+1] == 'n' || b[i+1] == 'r' {
 				newlines++
-			} else if '1' <= b[i+1] && b[i+1] <= '9' || b[i+1] == '0' && i+2 < len(b) && '0' <= b[i+2] && b[i+2] <= '9' {
-				notEscapes = true
+			} else if '1' <= b[i+1] && b[i+1] <= '9' && i+2 < len(b) {
+				if b[i+1] == '1' && (b[i+2] == '2' || b[i+2] == '5') {
+					newlines++
+				} else if b[i+1] == '4' && b[i+2] == '2' {
+					doubleQuotes++
+				} else if b[i+1] == '4' && b[i+2] == '7' {
+					singleQuotes++
+				} else if i+3 < len(b) && b[i+1] == '1' && b[i+2] == '4' && b[i+3] == '0' {
+					backtickQuotes++
+				}
+			} else if b[i+1] == 'x' && i+3 < len(b) {
+				if b[i+2] == '0' && (b[i+3]|0x20 == 'a' || b[i+3]|0x20 == 'd') {
+					newlines++
+				} else if b[i+2] == '2' && b[i+3] == '2' {
+					doubleQuotes++
+				} else if b[i+2] == '2' && b[i+3] == '7' {
+					singleQuotes++
+				} else if b[i+2] == '6' && b[i+3] == '0' {
+					backtickQuotes++
+				}
+			} else if b[i+1] == 'u' && i+5 < len(b) && b[i+2] == '0' && b[i+3] == '0' {
+				if b[i+4] == '0' && (b[i+5]|0x20 == 'a' || b[i+5]|0x20 == 'd') {
+					newlines++
+				} else if b[i+4] == '2' && b[i+5] == '2' {
+					doubleQuotes++
+				} else if b[i+4] == '2' && b[i+5] == '7' {
+					singleQuotes++
+				} else if b[i+4] == '6' && b[i+5] == '0' {
+					backtickQuotes++
+				}
+			} else if b[i+1] == 'u' && i+4 < len(b) && b[i+2] == '{' {
+				j := i + 3
+				for j < len(b) && b[j] == '0' {
+					j++
+				}
+				if j+1 < len(b) && (b[j]|0x20 == 'a' || b[j]|0x20 == 'd') && b[j+1] == '}' {
+					newlines++
+				} else if j+2 < len(b) && b[j+2] == '}' {
+					if b[j] == '2' && b[j+1] == '2' {
+						doubleQuotes++
+					} else if b[j] == '2' && b[j+1] == '7' {
+						singleQuotes++
+					} else if b[j] == '6' && b[j+1] == '0' {
+						backtickQuotes++
+					}
+				}
 			}
 		}
 	}
 	quote := byte('"') // default to " for better GZIP compression
-	quotes := singleQuotes
+	quotes := doubleQuotes
 	if doubleQuotes < singleQuotes {
 		quote = byte('"')
-		quotes = doubleQuotes
 	} else if singleQuotes < doubleQuotes {
 		quote = byte('\'')
+		quotes = singleQuotes
 	}
-	if allowTemplate && !notEscapes && backtickQuotes+dollarSigns < quotes+newlines {
+	if allowTemplate && backtickQuotes+dollarSigns < quotes+newlines {
 		quote = byte('`')
 	}
 	b[0] = quote
@@ -981,12 +1026,12 @@ func replaceEscapes(b []byte, quote byte, prefix, suffix int) []byte {
 	for i := prefix; i < len(b)-suffix; i++ {
 		if c := b[i]; c == '\\' {
 			c = b[i+1]
-			if c == quote || c == '\\' || c == 'u' || c == '0' && (i+2 == len(b)-1 || b[i+2] < '0' || '7' < b[i+2]) || quote != '`' && (c == 'n' || c == 'r') {
+			if c == quote || c == '\\' || quote != '`' && (c == 'n' || c == 'r') || c == '0' && (len(b)-suffix <= i+2 || b[i+2] < '0' || '7' < b[i+2]) {
 				// keep escape sequence
 				i++
 				continue
 			}
-			n := 1
+			n := 1 // number of characters to skip
 			if c == '\n' || c == '\r' || c == 0xE2 && i+3 < len(b)-1 && b[i+2] == 0x80 && (b[i+3] == 0xA8 || b[i+3] == 0xA9) {
 				// line continuations
 				if c == 0xE2 {
@@ -997,28 +1042,96 @@ func replaceEscapes(b []byte, quote byte, prefix, suffix int) []byte {
 					n = 2
 				}
 			} else if c == 'x' {
-				if i+3 < len(b)-1 && isHexDigit(b[i+2]) && b[i+2] < '8' && isHexDigit(b[i+3]) {
+				if i+3 < len(b)-1 && isHexDigit(b[i+2]) && b[i+2] < '8' && isHexDigit(b[i+3]) && (!(b[i+2] == '0' && b[i+3] == '0') || i+3 == len(b) || b[i+3] != '\\' && (b[i+3] < '0' && '7' < b[i+3])) {
+					// don't convert \x00 to \0 if it may be an octal number
 					// hexadecimal escapes
-					_, _ = hex.Decode(b[i+3:i+4:i+4], b[i+2:i+4])
-					n = 3
-					if b[i+3] == 0 || b[i+3] == '\\' || b[i+3] == quote || b[i+3] == '\n' || b[i+3] == '\r' {
-						if b[i+3] == 0 {
-							b[i+3] = '0'
-						} else if b[i+3] == '\n' {
-							b[i+3] = 'n'
-						} else if b[i+3] == '\r' {
-							b[i+3] = 'r'
+					_, _ = hex.Decode(b[i:i+1:i+1], b[i+2:i+4])
+					n = 4
+					if b[i] == '\\' || b[i] == quote || quote != '`' && (b[i] == '\n' || b[i] == '\r') || b[i] == 0 {
+						if b[i] == '\n' {
+							b[i+1] = 'n'
+						} else if b[i] == '\r' {
+							b[i+1] = 'r'
+						} else {
+							b[i+1] = b[i]
 						}
+						b[i] = '\\'
+						i++
 						n--
-						b[i+2] = '\\'
 					}
+					i++
+					n--
 				} else {
 					i++
 					continue
 				}
+			} else if c == 'u' && i+2 < len(b) {
+				l := i + 2
+				if b[i+2] == '{' {
+					l++
+				}
+				r := l
+				for ; r < len(b) && (b[i+2] == '{' || r < l+4); r++ {
+					if b[r] < '0' || '9' < b[r] && b[r] < 'A' || 'F' < b[r] && b[r] < 'a' || 'f' < b[r] {
+						break
+					}
+				}
+				if b[i+2] == '{' && (6 < r-l || len(b) <= r || b[r] != '}') || b[i+2] != '{' && r-l != 4 {
+					i++
+					continue
+				}
+				num, err := stdStrconv.ParseInt(string(b[l:r]), 16, 32)
+				if err != nil || 0x10FFFF <= num {
+					i++
+					continue
+				}
+
+				n = 2 + r - l
+				if b[i+2] == '{' {
+					n += 2
+				}
+				if num == 0 {
+					// don't convert NULL to literal NULL (gives JS parsing problems)
+					if r == len(b) || b[r] != '\\' && (b[r] < '0' && '7' < b[r]) {
+						b[i+1] = '0'
+						i += 2
+						n -= 2
+					} else {
+						// don't convert NULL to \0 (may be an octal number)
+						b[i+1] = 'x'
+						b[i+2] = '0'
+						b[i+3] = '0'
+						i += 4
+						n -= 4
+					}
+				} else if quote == '`' || num != 10 && num != 13 {
+					// decode unicode character to UTF-8 and put at the end of the escape sequence
+					// then skip the first part of the escape sequence until the decoded character
+					m := utf8.RuneLen(rune(num))
+					if m == -1 {
+						i++
+						continue
+					} else if num < 256 && quote == byte(num) {
+						b[i] = '\\'
+						i++
+						n--
+					}
+					utf8.EncodeRune(b[i:], rune(num))
+					i += m
+					n -= m
+				} else {
+					if num == 10 {
+						b[i+1] = 'n'
+					} else {
+						b[i+1] = 'r'
+					}
+					i += 2
+					n -= 2
+				}
 			} else if '0' <= c && c <= '7' {
-				// octal escapes (legacy), \0 already handled
+				// octal escapes (legacy), \0 already handled (quote != `)
 				num := c - '0'
+				n++
 				if i+2 < len(b)-1 && '0' <= b[i+2] && b[i+2] <= '7' {
 					num = num*8 + b[i+2] - '0'
 					n++
@@ -1027,30 +1140,41 @@ func replaceEscapes(b []byte, quote byte, prefix, suffix int) []byte {
 						n++
 					}
 				}
-				b[i+n] = num
-				if num == 0 || num == '\\' || num == quote || num == '\n' || num == '\r' {
+				b[i] = num
+				if num == 0 || num == '\\' || num == quote || quote != '`' && (num == '\n' || num == '\r') {
 					if num == 0 {
-						b[i+n] = '0'
+						b[i+1] = '0'
 					} else if num == '\n' {
-						b[i+n] = 'n'
+						b[i+1] = 'n'
 					} else if num == '\r' {
-						b[i+n] = 'r'
+						b[i+1] = 'r'
+					} else {
+						b[i+1] = b[i]
 					}
+					b[i] = '\\'
+					i++
 					n--
-					b[i+n] = '\\'
 				}
-			} else if c == 'n' {
-				b[i+1] = '\n' // only for template literals
-			} else if c == 'r' {
-				b[i+1] = '\r' // only for template literals
+				i++
+				n--
+			} else if quote == '`' && c == 'n' {
+				b[i] = '\n'
+				i++
+			} else if quote == '`' && c == 'r' {
+				b[i] = '\r'
+				i++
 			} else if c == 't' {
-				b[i+1] = '\t'
+				b[i] = '\t'
+				i++
 			} else if c == 'f' {
-				b[i+1] = '\f'
+				b[i] = '\f'
+				i++
 			} else if c == 'v' {
-				b[i+1] = '\v'
+				b[i] = '\v'
+				i++
 			} else if c == 'b' {
-				b[i+1] = '\b'
+				b[i] = '\b'
+				i++
 			}
 			// remove unnecessary escape character, anything but 0x00, 0x0A, 0x0D, \, ' or "
 			if start != 0 {
@@ -1231,23 +1355,31 @@ func minifyRegExp(b []byte) []byte {
 	return b
 }
 
-func removeUnderscores(b []byte) []byte {
+func removeUnderscoresAndSuffix(b []byte) ([]byte, bool) {
 	for i := 0; i < len(b); i++ {
 		if b[i] == '_' {
 			b = append(b[:i], b[i+1:]...)
 			i--
 		}
 	}
-	return b
+	if 0 < len(b) && b[len(b)-1] == 'n' {
+		return b[:len(b)-1], true
+	}
+	return b, false
 }
 
 func decimalNumber(b []byte, prec int) []byte {
-	b = removeUnderscores(b)
+	var suffix bool
+	b, suffix = removeUnderscoresAndSuffix(b)
+	if suffix {
+		return append(b, 'n')
+	}
 	return minify.Number(b, prec)
 }
 
 func binaryNumber(b []byte, prec int) []byte {
-	b = removeUnderscores(b)
+	var suffix bool
+	b, suffix = removeUnderscoresAndSuffix(b)
 	if len(b) <= 2 || 65 < len(b) {
 		return b
 	}
@@ -1263,11 +1395,15 @@ func binaryNumber(b []byte, prec int) []byte {
 		n /= 10
 		i--
 	}
+	if suffix {
+		return append(b, 'n')
+	}
 	return minify.Number(b, prec)
 }
 
 func octalNumber(b []byte, prec int) []byte {
-	b = removeUnderscores(b)
+	var suffix bool
+	b, suffix = removeUnderscoresAndSuffix(b)
 	if len(b) <= 2 || 23 < len(b) {
 		return b
 	}
@@ -1283,11 +1419,15 @@ func octalNumber(b []byte, prec int) []byte {
 		n /= 10
 		i--
 	}
+	if suffix {
+		return append(b, 'n')
+	}
 	return minify.Number(b, prec)
 }
 
 func hexadecimalNumber(b []byte, prec int) []byte {
-	b = removeUnderscores(b)
+	var suffix bool
+	b, suffix = removeUnderscoresAndSuffix(b)
 	if len(b) <= 2 || 12 < len(b) || len(b) == 12 && ('D' < b[2] && b[2] <= 'F' || 'd' < b[2]) {
 		return b
 	}
@@ -1308,6 +1448,9 @@ func hexadecimalNumber(b []byte, prec int) []byte {
 		b[i] = byte('0' + n%10)
 		n /= 10
 		i--
+	}
+	if suffix {
+		return append(b, 'n')
 	}
 	return minify.Number(b, prec)
 }
