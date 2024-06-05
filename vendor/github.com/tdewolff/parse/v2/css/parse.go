@@ -216,7 +216,7 @@ func (p *Parser) parseDeclarationList() GrammarType {
 	// parse error
 	p.initBuf()
 	p.l.r.Move(-len(p.data))
-	p.err, p.errPos = fmt.Sprintf("CSS parse error: unexpected token '%s' in declaration", string(p.data)), p.l.r.Offset()
+	p.err, p.errPos = fmt.Sprintf("unexpected token '%s' in declaration", string(p.data)), p.l.r.Offset()
 	p.l.r.Move(len(p.data))
 
 	if p.tt == RightBraceToken {
@@ -232,7 +232,7 @@ func (p *Parser) parseDeclarationList() GrammarType {
 
 func (p *Parser) parseAtRule() GrammarType {
 	p.initBuf()
-	parse.ToLower(p.data)
+	p.data = parse.ToLower(parse.Copy(p.data))
 	atRuleName := p.data
 	if len(atRuleName) > 0 && atRuleName[1] == '-' {
 		if i := bytes.IndexByte(atRuleName[2:], '-'); i != -1 {
@@ -260,6 +260,15 @@ func (p *Parser) parseAtRule() GrammarType {
 		} else if tt == LeftParenthesisToken || tt == LeftBraceToken || tt == LeftBracketToken || tt == FunctionToken {
 			p.level++
 		} else if tt == RightParenthesisToken || tt == RightBraceToken || tt == RightBracketToken {
+			if p.level == 0 {
+				// TODO: buggy
+				p.pushBuf(tt, data)
+				if 1 < len(p.state) {
+					p.state = p.state[:len(p.state)-1]
+				}
+				p.err, p.errPos = "unexpected ending in at rule", p.l.r.Offset()
+				return ErrorGrammar
+			}
 			p.level--
 		}
 		if first {
@@ -339,11 +348,20 @@ func (p *Parser) parseQualifiedRule() GrammarType {
 			p.state = append(p.state, (*Parser).parseQualifiedRuleDeclarationList)
 			return BeginRulesetGrammar
 		} else if tt == ErrorToken {
-			p.err, p.errPos = "CSS parse error: unexpected ending in qualified rule", p.l.r.Offset()
+			p.err, p.errPos = "unexpected ending in qualified rule", p.l.r.Offset()
 			return ErrorGrammar
 		} else if tt == LeftParenthesisToken || tt == LeftBraceToken || tt == LeftBracketToken || tt == FunctionToken {
 			p.level++
 		} else if tt == RightParenthesisToken || tt == RightBraceToken || tt == RightBracketToken {
+			if p.level == 0 {
+				// TODO: buggy
+				p.pushBuf(tt, data)
+				if 1 < len(p.state) {
+					p.state = p.state[:len(p.state)-1]
+				}
+				p.err, p.errPos = "unexpected ending in qualified rule", p.l.r.Offset()
+				return ErrorGrammar
+			}
 			p.level--
 		}
 		if len(data) == 1 && (data[0] == ',' || data[0] == '>' || data[0] == '+' || data[0] == '~') {
@@ -378,13 +396,13 @@ func (p *Parser) parseQualifiedRuleDeclarationList() GrammarType {
 
 func (p *Parser) parseDeclaration() GrammarType {
 	p.initBuf()
-	parse.ToLower(p.data)
+	p.data = parse.ToLower(parse.Copy(p.data))
 
 	ttName, dataName := p.tt, p.data
 	tt, data := p.popToken(false)
 	if tt != ColonToken {
 		p.l.r.Move(-len(data))
-		p.err, p.errPos = "CSS parse error: expected colon in declaration", p.l.r.Offset()
+		p.err, p.errPos = "expected colon in declaration", p.l.r.Offset()
 		p.l.r.Move(len(data))
 		p.pushBuf(ttName, dataName)
 		return p.parseDeclarationError(tt, data)
@@ -399,6 +417,13 @@ func (p *Parser) parseDeclaration() GrammarType {
 		} else if tt == LeftParenthesisToken || tt == LeftBraceToken || tt == LeftBracketToken || tt == FunctionToken {
 			p.level++
 		} else if tt == RightParenthesisToken || tt == RightBraceToken || tt == RightBracketToken {
+			if p.level == 0 {
+				// TODO: buggy
+				p.err, p.errPos = "unexpected ending in declaration", p.l.r.Offset()
+				p.pushBuf(ttName, dataName)
+				p.pushBuf(ColonToken, []byte{':'})
+				return p.parseDeclarationError(tt, data)
+			}
 			p.level--
 		}
 		if len(data) == 1 && (data[0] == ',' || data[0] == '/' || data[0] == ':' || data[0] == '!' || data[0] == '=') {
@@ -441,7 +466,7 @@ func (p *Parser) parseCustomProperty() GrammarType {
 	p.initBuf()
 	if tt, data := p.popToken(false); tt != ColonToken {
 		p.l.r.Move(-len(data))
-		p.err, p.errPos = "CSS parse error: expected colon in custom property", p.l.r.Offset()
+		p.err, p.errPos = "expected colon in custom property", p.l.r.Offset()
 		p.l.r.Move(len(data))
 		return ErrorGrammar
 	}
@@ -455,6 +480,12 @@ func (p *Parser) parseCustomProperty() GrammarType {
 		} else if tt == LeftParenthesisToken || tt == LeftBraceToken || tt == LeftBracketToken || tt == FunctionToken {
 			p.level++
 		} else if tt == RightParenthesisToken || tt == RightBraceToken || tt == RightBracketToken {
+			if p.level == 0 {
+				// TODO: buggy
+				p.pushBuf(tt, data)
+				p.err, p.errPos = "unexpected ending in custom property", p.l.r.Offset()
+				return ErrorGrammar
+			}
 			p.level--
 		}
 		val = append(val, data...)
